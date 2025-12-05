@@ -26,7 +26,7 @@ namespace GoldenglowTrinket
     {
         private FireballCompanion _companion;//
         private FireballCompanion _companion2;
-        private FireballCompanion _companion3;
+        private FireballCompanion _companion3;//
         private FireballCompanion _companion4;
         private bool www;
 
