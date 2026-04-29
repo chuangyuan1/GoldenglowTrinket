@@ -82,6 +82,12 @@ namespace GoldenglowTrinket
 
         }
 
+        //无参构造函数
+        public NormalBeaconTrinket() : base(null)
+        {
+            
+        }
+
 
         public override void Update(Farmer farmer, GameTime time, GameLocation location)
         {
@@ -249,6 +255,13 @@ namespace GoldenglowTrinket
             private float BaseMultiplier=0.2f; // 攻击初始倍率
             private Vector2 _lastPosition;
             private float AllAttackSpeed =0f;   // 信标总攻速
+
+            //无参构造函数
+            public FireballCompanion()
+            {
+                
+            }
+
             public FireballCompanion(NormalBeaconTrinket parent, int variant, float fireballDelay, Vector2 offset)
             : base(variant)
             {
@@ -1199,7 +1212,7 @@ namespace GoldenglowTrinket
                 //Game1.addHUDMessage(new HUDMessage("子弹的角度：" + projectileRotation));
                 Vector2 velocity = Utility.getVelocityTowardPoint(Position + _fireballOffset + Offset1, target.Position, 10f);
                 NBProjectile fireball = new NBProjectile(
-                    actualDamage: Game1.random.Next(_ActualDamage - (int)(_ActualDamage * 0.2), _ActualDamage + (int)(_ActualDamage * 0.2) + 1),
+                actualDamage: 0,
                 spriteIndex: 47,
                 bouncesTillDestruct: 0,
                 tailLength: 2,
@@ -1235,6 +1248,19 @@ namespace GoldenglowTrinket
                 Vector2 explosionCenter = new Vector2(x, y);
                 _nbHitEffect.CreateExplosion(location, explosionCenter);
 
+                //子弹伤害结算
+                int damage = Game1.random.Next(
+                    _ActualDamage - (int)(_ActualDamage * 0.2),
+                    _ActualDamage + (int)(_ActualDamage * 0.2) + 1
+                     );
+
+                location.explode(
+                new Vector2(x, y),            //爆炸所在位置
+                1,                            //爆炸范围
+                Owner,                        //伤害来源
+                false,                        //是否对自己造成伤害
+                damage                        //最终电流伤害(公式）
+                 );
 
             }
 
