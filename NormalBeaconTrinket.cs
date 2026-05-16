@@ -90,35 +90,40 @@ namespace GoldenglowTrinket
             // 检查是否需要重新应用效果（当随从丢失或强化物品状态改变时）
             bool needsReapply = false;//是否生成
 
-            // 检查前三个随从是否存在
-            if (_companion == null || !farmer.companions.Contains(_companion) ||
-                _companion2 == null || !farmer.companions.Contains(_companion2) ||
-                _companion3 == null || !farmer.companions.Contains(_companion3))
+            //随从检查只在主机端执行
+            if (Game1.IsMasterGame)
             {
-                needsReapply = true;
+                
+
+                // 检查前三个随从是否存在
+                if (_companion == null || !farmer.companions.Contains(_companion) ||
+                    _companion2 == null || !farmer.companions.Contains(_companion2) ||
+                    _companion3 == null || !farmer.companions.Contains(_companion3))
+                {
+                    needsReapply = true;
+                }
+
+                // 检查特殊物品在不在
+                bool hasEnhancement = HasEnhancementUnit(farmer, "GoldenglowBeaconEnhancementUnit3");
+                bool shouldHaveFourthCompanion = hasEnhancement && _companion4 != null;//有特殊物品和有第四个随从
+                bool shouldNotHaveFourthCompanion = !hasEnhancement && _companion4 == null;//没特殊物品和没第四个随从
+
+                if (!(shouldHaveFourthCompanion || shouldNotHaveFourthCompanion))//判断当前情况合不合预期，不和就重新生成
+                {
+                    needsReapply = true;
+                }
+
+                // 检查第四个随从状态（如果应该有但没有，或者不应该有但有）
+                if (hasEnhancement && (_companion4 == null || !farmer.companions.Contains(_companion4)))
+                {
+                    needsReapply = true;
+                }
+
+                if (needsReapply)
+                {
+                    Apply(farmer);
+                }
             }
-
-            // 检查特殊物品在不在
-            bool hasEnhancement = HasEnhancementUnit(farmer, "GoldenglowBeaconEnhancementUnit3");
-            bool shouldHaveFourthCompanion = hasEnhancement && _companion4 != null;//有特殊物品和有第四个随从
-            bool shouldNotHaveFourthCompanion = !hasEnhancement && _companion4 == null;//没特殊物品和没第四个随从
-
-            if (!(shouldHaveFourthCompanion || shouldNotHaveFourthCompanion))//判断当前情况合不合预期，不和就重新生成
-            {
-                needsReapply = true;
-            }
-
-            // 检查第四个随从状态（如果应该有但没有，或者不应该有但有）
-            if (hasEnhancement && (_companion4 == null || !farmer.companions.Contains(_companion4)))
-            {
-                needsReapply = true;
-            }
-
-            if (needsReapply)
-            {
-                Apply(farmer);
-            }
-
         }
         public override void Apply(Farmer farmer)
         {
@@ -126,24 +131,27 @@ namespace GoldenglowTrinket
             //_companion = CreateCompanion(farmer, new Vector2(-10f, 45f));
             //_companion2 = CreateCompanion(farmer, new Vector2(25f, 30f));
             //_companion3 = CreateCompanion(farmer, new Vector2(50f, 45f));
-            _companion = CreateCompanion(farmer, new Vector2(-25f, 45f));
-            _companion2 = CreateCompanion(farmer, new Vector2(0f, 30f));
-            _companion3 = CreateCompanion(farmer, new Vector2(25f, 45f));
 
-            if (HasEnhancementUnit(farmer, "GoldenglowBeaconEnhancementUnit3"))
-            {
-                _companion4 = CreateCompanion(farmer, new Vector2(50f, 50f));
-                if (!farmer.companions.Contains(_companion4)) farmer.AddCompanion(_companion4);
+            if (Game1.IsMasterGame)
+            {     
+                _companion = CreateCompanion(farmer, new Vector2(-25f, 45f));
+                _companion2 = CreateCompanion(farmer, new Vector2(0f, 30f));
+                _companion3 = CreateCompanion(farmer, new Vector2(25f, 45f));
+
+                if (HasEnhancementUnit(farmer, "GoldenglowBeaconEnhancementUnit3"))
+                {
+                    _companion4 = CreateCompanion(farmer, new Vector2(50f, 50f));
+                    if (!farmer.companions.Contains(_companion4)) farmer.AddCompanion(_companion4);
+                }
+                else
+                {
+                    _companion4 = null; // 确保第四个随从为null
+                }
+
+                if (!farmer.companions.Contains(_companion)) farmer.AddCompanion(_companion);
+                if (!farmer.companions.Contains(_companion2)) farmer.AddCompanion(_companion2);
+                if (!farmer.companions.Contains(_companion3)) farmer.AddCompanion(_companion3);
             }
-            else
-            {
-                _companion4 = null; // 确保第四个随从为null
-            }
-
-            if (!farmer.companions.Contains(_companion)) farmer.AddCompanion(_companion);
-            if (!farmer.companions.Contains(_companion2)) farmer.AddCompanion(_companion2);
-            if (!farmer.companions.Contains(_companion3)) farmer.AddCompanion(_companion3);
-
         }
 
         private FireballCompanion CreateCompanion(Farmer farmer, Vector2 offset)
@@ -161,26 +169,30 @@ namespace GoldenglowTrinket
 
         public override void Unapply(Farmer farmer)
         {
-            if (_companion != null)
+            if (Game1.IsMasterGame)
             {
-                farmer.RemoveCompanion(_companion);
-                _companion.ResetAttackState(); 
-            }
-            if (_companion2 != null)
-            {
-                farmer.RemoveCompanion(_companion2);
-                _companion2.ResetAttackState();
-            }
-            if (_companion3 != null)
-            {
-                farmer.RemoveCompanion(_companion3);
-                _companion3.ResetAttackState();
-            }
-            if (_companion4 != null)
-            {
-                farmer.RemoveCompanion(_companion4);
-                _companion4.ResetAttackState();
-            }
+                
+                if (_companion != null)
+                {
+                    farmer.RemoveCompanion(_companion);
+                    _companion.ResetAttackState(); 
+                }
+                if (_companion2 != null)
+                {
+                    farmer.RemoveCompanion(_companion2);
+                    _companion2.ResetAttackState();
+                }
+                if (_companion3 != null)
+                {
+                    farmer.RemoveCompanion(_companion3);
+                    _companion3.ResetAttackState();
+                }
+                if (_companion4 != null)
+                {
+                    farmer.RemoveCompanion(_companion4);
+                    _companion4.ResetAttackState();
+                }
+            }    
             _companion = _companion2 = _companion3 = _companion4 = null;
 
         }
@@ -188,6 +200,7 @@ namespace GoldenglowTrinket
         //随从类
         public class FireballCompanion : FlyingCompanion
         {
+
             private int _BaseDamage = 120;
             private int _ActualDamage = 0;
             private Vector2 _fireballOffset = new Vector2(-50f, -148f);//固定偏移（x-往左，+往右，y-）
@@ -211,6 +224,7 @@ namespace GoldenglowTrinket
             private const float RetreatDuration = 600f; // 缓冲动画总时长（毫秒）
             private Vector2 _originalAttackPos; // 初始攻击位置
             private Vector2 _retreatOffset = new Vector2(0f, 20f); // 后退偏移量
+            private static int _companionCounter = 0;
 
             private bool _isSpecialAttacking = false;
             private Vector2 _dashTarget; // 冲刺目标坐标
@@ -249,6 +263,28 @@ namespace GoldenglowTrinket
             private float BaseMultiplier=0.2f; // 攻击初始倍率
             private Vector2 _lastPosition;
             private float AllAttackSpeed =0f;   // 信标总攻速
+            public FireballCompanion() : base(0) // 无参数构造函数，供网络反序列化使用
+            {
+                _nbSelfEffect = new NBSelfEffect(this);
+                _nbHitEffect = new NBHitEffect();
+                _lastOwnerPosition = Vector2.Zero;
+
+                int index = _companionCounter++ % 3;
+                switch (index)
+                {
+                    case 0: _originalOffset = new Vector2(-25f, 45f); break;
+                    case 1: _originalOffset = new Vector2(0f, 30f); break;
+                    case 2: _originalOffset = new Vector2(25f, 45f); break;
+                }
+                _fireballOffset = _originalOffset;
+
+                // 调用 InitializeCompanion 确保 FlyingCompanion 所有网络字段都初始化，防止联机反序列化时空引用崩溃
+                if (Owner != null)
+                    InitializeCompanion(Owner);
+                    // 确保必要的网络字段有默认值
+                    if (lerp < 0f) lerp = -1f;
+                    if (direction.Value == 0) direction.Value = 2;
+            }
             public FireballCompanion(NormalBeaconTrinket parent, int variant, float fireballDelay, Vector2 offset)
             : base(variant)
             {
@@ -310,6 +346,9 @@ namespace GoldenglowTrinket
             }
             public override void Update(GameTime time, GameLocation location)
             {
+                if (Owner == null)
+                return;
+
                 if (Game1.eventUp)
                 {
                     // 事件期间隐藏随从
@@ -405,7 +444,7 @@ namespace GoldenglowTrinket
                 if (Game1.shouldTimePass())
                 {
                     // 通过 _parent 访问实例方法
-                    HashSet<string> ignoreLocations = _parent.GetIgnoredLocations();
+                    HashSet<string> ignoreLocations = _parent?.GetIgnoredLocations() ?? new HashSet<string>();
                     string locationName = location.NameOrUniqueName;
 
                     if (ignoreLocations.Contains(locationName) || ignoreLocations.Contains(location.Name))
@@ -413,7 +452,7 @@ namespace GoldenglowTrinket
                         _inSlimeHutch = true;
                     }
 
-                    HashSet<string> ignoreMonsters = _parent.GetIgnoredMonsterNames();
+                    HashSet<string> ignoreMonsters = _parent?.GetIgnoredMonsterNames() ?? new HashSet<string>();
                     Monster target1 = Utility.findClosestMonsterWithinRange(
                         location,
                         Owner.Position,
@@ -1025,7 +1064,7 @@ namespace GoldenglowTrinket
                     (float)Math.Sin(angle1) * 15f
                 );
                 _nbSelfEffect.AddAppearEffect(location, Position);//出现特效
-                // 发起攻击
+                // 发起攻击 // 崩溃关键字段！ 修复中 注释掉可以修复客机崩溃
                 ShootFireball(location, Owner);
 
             }
@@ -1086,6 +1125,9 @@ namespace GoldenglowTrinket
 
             public override void Draw(SpriteBatch b)
             {
+                // 为空时不绘制
+                if (Owner == null)
+                 return;
                 // 冷却期间不绘制
                 if (_PuGong || XiaoShi || InEvent) return;
                 // 不是节日活动期间
@@ -1187,6 +1229,7 @@ namespace GoldenglowTrinket
             private void ShootFireball(GameLocation location, Farmer farmer)
             {
                 //Monster target = Utility.findClosestMonsterWithinRange(location, Owner.Position, 1000);
+                if (farmer == null) farmer = Game1.player;
                 if (target == null) return;
 
                 Vector2 fireballStartPos = Position + _fireballOffset + Offset1;
@@ -1222,8 +1265,9 @@ namespace GoldenglowTrinket
                 fireball.light.Value = true;
                 fireball.IgnoreLocationCollision = true;
                 fireball.ignoreObjectCollisions.Value = true;
-                fireball.startingRotation.Value = projectileRotation;
-                location.projectiles.Add(fireball);
+                fireball.startingRotation.Value = projectileRotation; 
+                // 崩溃关键字段！ 修复中 注释掉可以修复客机崩溃
+                location.projectiles.Add(fireball); 
             }
 
 

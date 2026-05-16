@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Reflection;
 using Microsoft.Xna.Framework;
-using Netcode;
 using StardewValley.BellsAndWhistles;
 using StardewValley.TokenizableStrings;
 using StardewValley.TerrainFeatures;
@@ -17,24 +17,18 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
 {
     public class NBProjectile : BasicProjectile
     {
-        public readonly NetRef<Character> _firer = new NetRef<Character>();
-        public readonly NetRef<Monster> _target = new NetRef<Monster>();
-        private readonly NetFloat trackStrength = new NetFloat(0.1f); // 跟踪强度
-        private readonly NetFloat maxTrackSpeed = new NetFloat(10f); // 最大跟踪速度
-        private readonly NetInt _actualDamage = new NetInt(); // 实际伤害值
-        private readonly NetRef<Farmer> _ownerFarmer = new NetRef<Farmer>();
+        private Character _firer;
+        private Monster _target;
+        private float trackStrength = 0.1f;
+        private float maxTrackSpeed = 10f;
+        private int _actualDamage;
+        private Farmer _ownerFarmer;
         Random random = new Random();
         private float TrackParticlesTimer;
 
-        protected override void InitNetFields()
+
+        public NBProjectile() : base() //无参数构造函数，供网络反序列化使用
         {
-            base.InitNetFields();
-            base.NetFields.AddField(_firer, "_firer")
-                         .AddField(_target, "_target")
-                         .AddField(trackStrength, "trackStrength")
-                         .AddField(maxTrackSpeed, "maxTrackSpeed")
-                         .AddField(_actualDamage, "_actualDamage")
-                         .AddField(_ownerFarmer, "_ownerFarmer");
         }
 
         public NBProjectile(
@@ -66,29 +60,29 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
                 collisionSound: collisionSound,
                 bounceSound: null,
                 firingSound: null,
-                explode: true,
+                explode: false,
                 damagesMonsters: true, //
                 location: location,
                 firer: firer,
                 collisionBehavior: collisionBehavior) 
         {
-            this._actualDamage.Value = actualDamage;
-            this._firer.Value = firer;
-            this._target.Value = target;
-            this.trackStrength.Value = trackStrength;
-            this.maxTrackSpeed.Value = maxTrackSpeed;
+            this._actualDamage = actualDamage;
+            this._firer = firer;
+            this._target = target;
+            this.trackStrength = trackStrength;
+            this.maxTrackSpeed = maxTrackSpeed;
             if (firer is Farmer farmer)
             {
-                _ownerFarmer.Value = farmer;
+                this._ownerFarmer = farmer;
             }
-            InitNetFields();
+
         }
         private bool HasEnhancementUnit(string itemId)
         {
-            if (_ownerFarmer.Value == null)
+            if (_ownerFarmer == null)
                 return false;
 
-            foreach (var item in _ownerFarmer.Value.Items)
+            foreach (var item in _ownerFarmer.Items)
             {
                 // 物品不为空且物品ID匹配时返回true
                 if (item != null && item.QualifiedItemId == $"(O){itemId}")
@@ -130,20 +124,22 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
                 float critChance = 0;
                 critChance += enhancements.critChance;
                 // 直接造成伤害，不传递击退
+                Farmer who = _ownerFarmer ?? Game1.player;
                 location.damageMonster(
                 monster.GetBoundingBox(),
-                _actualDamage.Value,
-                _actualDamage.Value + 1,
+                _actualDamage,
+                _actualDamage + 1,
                 isBomb: false,
                 knockBackModifier: 1f,//击退
                 addedPrecision: addedPrecision,
                 critChance: critChance,//暴击率
                 critMultiplier: 1.5f,//暴击倍率
                 triggerMonsterInvincibleTimer: false,
-                _firer.Value as Farmer,
+                who,
                 isProjectile: true
                 );
-                piercesLeft.Value = 0;
+                    piercesLeft.Value = 0;
+                    this.destroyMe = true;
             }
 
         }
@@ -154,8 +150,27 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
 
         public override bool update(GameTime time, GameLocation location)
         {
+            // 客机端：检测是否接近目标，接近则销毁
+            if (!Game1.IsMasterGame && _target != null)
+            {
+                if (_target.Health <= 0 || Vector2.Distance(position.Value, _target.Position) < 40f)
+                {
+                    if (collisionBehavior != null)
+                    {
+                        collisionBehavior(location, (int)position.Value.X, (int)position.Value.Y, null);
+                    }
 
-            TrackParticlesTimer += time.ElapsedGameTime.Milliseconds;
+                    piercesLeft.Value = 0;
+                    destroyMe = true;
+                     return true;
+                }
+            }
+
+            // 爆炸后已标记销毁，跳过追踪
+            if (destroyMe)
+                return base.update(time, location);
+
+                TrackParticlesTimer += time.ElapsedGameTime.Milliseconds;
             if (TrackParticlesTimer >= 30f)
             {
                 TrackParticlesTimer = 0;
@@ -164,34 +179,39 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
             
 
             // 跟踪逻辑
-            if (_target.Value != null && _target.Value.currentLocation == location && _target.Value.Health > 0)
+            if (_target != null && _target.currentLocation == location && _target.Health > 0)
             {
                 // 计算朝向目标的方向
-                Vector2 direction = _target.Value.Position - this.position.Value;
+                Vector2 direction = _target.Position - this.position.Value;
                 if (direction != Vector2.Zero)
                 {
                     direction.Normalize();
                     
                     // 应用跟踪力
-                    xVelocity.Value = MathHelper.Lerp(xVelocity.Value, direction.X * maxTrackSpeed.Value, trackStrength.Value);
-                    yVelocity.Value = MathHelper.Lerp(yVelocity.Value, direction.Y * maxTrackSpeed.Value, trackStrength.Value);
+                    xVelocity.Value = MathHelper.Lerp(xVelocity.Value, direction.X * maxTrackSpeed, trackStrength);
+                    yVelocity.Value = MathHelper.Lerp(yVelocity.Value, direction.Y * maxTrackSpeed, trackStrength);
 
                     // 限制最大速度
                     float currentSpeed = (float)Math.Sqrt(xVelocity.Value * xVelocity.Value + yVelocity.Value * yVelocity.Value);
-                    if (currentSpeed > maxTrackSpeed.Value)
+                    if (currentSpeed > maxTrackSpeed)
                     {
-                        xVelocity.Value = xVelocity.Value / currentSpeed * maxTrackSpeed.Value;
-                        yVelocity.Value = yVelocity.Value / currentSpeed * maxTrackSpeed.Value;
+                        xVelocity.Value = xVelocity.Value / currentSpeed * maxTrackSpeed;
+                        yVelocity.Value = yVelocity.Value / currentSpeed * maxTrackSpeed;
                     }
 
                     // 更新旋转角度，使子弹朝向目标
                     rotation = (float)Math.Atan2(yVelocity.Value, xVelocity.Value) + MathHelper.PiOver2;
                 }
             }
-            else if (_target.Value == null || _target.Value.Health <= 0)
+            else if (_target == null || _target.Health <= 0)
             {
+                Monster oldTarget = _target;
                 // 寻找新目标
                 FindNewTarget(location);
+                if (_target == oldTarget)
+                {
+                    // 目标没变，跳过重复的 rotation 更新
+                }
                 // 确保旋转角度与当前运动方向一致
                 rotation = (float)Math.Atan2(yVelocity.Value, xVelocity.Value) + MathHelper.PiOver2;
 
@@ -212,12 +232,19 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
 
             if (newTarget != null)
             {
-                _target.Value = newTarget;
+                _target = newTarget;
             }
             else
             {
-              
-                piercesLeft.Value--;
+                // 只在主机端减少穿透次数，客机跟随主机同步
+                if (Game1.IsMasterGame)
+                {
+                    piercesLeft.Value--;
+                }
+                else
+                {
+                    destroyMe = true;
+                }
             }
         }
         private void TrackParticles(GameLocation location)
