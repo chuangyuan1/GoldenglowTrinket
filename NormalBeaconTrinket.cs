@@ -132,8 +132,6 @@ namespace GoldenglowTrinket
             //_companion2 = CreateCompanion(farmer, new Vector2(25f, 30f));
             //_companion3 = CreateCompanion(farmer, new Vector2(50f, 45f));
 
-            if (Game1.IsMasterGame)
-            {     
                 _companion = CreateCompanion(farmer, new Vector2(-25f, 45f));
                 _companion2 = CreateCompanion(farmer, new Vector2(0f, 30f));
                 _companion3 = CreateCompanion(farmer, new Vector2(25f, 45f));
@@ -151,7 +149,6 @@ namespace GoldenglowTrinket
                 if (!farmer.companions.Contains(_companion)) farmer.AddCompanion(_companion);
                 if (!farmer.companions.Contains(_companion2)) farmer.AddCompanion(_companion2);
                 if (!farmer.companions.Contains(_companion3)) farmer.AddCompanion(_companion3);
-            }
         }
 
         private FireballCompanion CreateCompanion(Farmer farmer, Vector2 offset)
@@ -169,9 +166,7 @@ namespace GoldenglowTrinket
 
         public override void Unapply(Farmer farmer)
         {
-            if (Game1.IsMasterGame)
-            {
-                
+
                 if (_companion != null)
                 {
                     farmer.RemoveCompanion(_companion);
@@ -191,8 +186,8 @@ namespace GoldenglowTrinket
                 {
                     farmer.RemoveCompanion(_companion4);
                     _companion4.ResetAttackState();
-                }
-            }    
+                }   
+                
             _companion = _companion2 = _companion3 = _companion4 = null;
 
         }
@@ -1064,7 +1059,7 @@ namespace GoldenglowTrinket
                     (float)Math.Sin(angle1) * 15f
                 );
                 _nbSelfEffect.AddAppearEffect(location, Position);//出现特效
-                // 发起攻击 // 崩溃关键字段！ 修复中 注释掉可以修复客机崩溃
+                // 发起攻击
                 ShootFireball(location, Owner);
 
             }
@@ -1254,7 +1249,7 @@ namespace GoldenglowTrinket
                 location: location,
                 firer: farmer,
                 target: target, // 传递目标怪物
-                trackStrength: 0.4f, // 跟踪强度
+                trackStrength: 0.4f, // 跟踪强度d
                 maxTrackSpeed: 12f,    // 最大跟踪速度 
                 collisionBehavior: OnFireballCollision
                 );
@@ -1265,9 +1260,16 @@ namespace GoldenglowTrinket
                 fireball.light.Value = true;
                 fireball.IgnoreLocationCollision = true;
                 fireball.ignoreObjectCollisions.Value = true;
-                fireball.startingRotation.Value = projectileRotation; 
-                // 崩溃关键字段！ 修复中 注释掉可以修复客机崩溃
-                location.projectiles.Add(fireball); 
+                fireball.startingRotation.Value = projectileRotation;
+
+                if (Game1.IsMasterGame)
+                    location.projectiles.Add(fireball);
+                else
+                {
+                    // 客机端：添加子弹到场景用于视觉显示（导致子弹来回横条）（禁用）
+                    location.projectiles.Add(fireball);
+                    _nbSelfEffect.AddAppearEffect(location, Position + _fireballOffset + Offset1);
+                }
             }
 
 

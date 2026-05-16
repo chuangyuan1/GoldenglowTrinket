@@ -108,6 +108,24 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
         }
         public override void behaviorOnCollisionWithMonster(NPC n, GameLocation location)
         {
+            if (!Game1.IsMasterGame)
+            {
+                if (collisionBehavior != null) //客机端命中特效
+                    collisionBehavior(location, (int)position.Value.X, (int)position.Value.Y, null);
+                    location.explode(
+                    new Vector2(position.Value.X / 64, position.Value.Y / 64),
+                    1,
+                    Game1.player,
+                    false,
+                    _actualDamage,
+                    true
+                );
+
+                piercesLeft.Value = 0;
+                destroyMe = true;
+                return;
+            }
+
             if (!damagesMonsters.Value)
             {
                 return;
@@ -150,25 +168,10 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
 
         public override bool update(GameTime time, GameLocation location)
         {
-            // 客机端：检测是否接近目标，接近则销毁
-            if (!Game1.IsMasterGame && _target != null)
-            {
-                if (_target.Health <= 0 || Vector2.Distance(position.Value, _target.Position) < 40f)
-                {
-                    if (collisionBehavior != null)
-                    {
-                        collisionBehavior(location, (int)position.Value.X, (int)position.Value.Y, null);
-                    }
-
-                    piercesLeft.Value = 0;
-                    destroyMe = true;
-                     return true;
-                }
-            }
-
-            // 爆炸后已标记销毁，跳过追踪
             if (destroyMe)
-                return base.update(time, location);
+             return base.update(time, location);
+             
+
 
                 TrackParticlesTimer += time.ElapsedGameTime.Milliseconds;
             if (TrackParticlesTimer >= 30f)
@@ -237,14 +240,9 @@ namespace GoldenglowTrinket.NB.NormalBeaconProjectile
             else
             {
                 // 只在主机端减少穿透次数，客机跟随主机同步
-                if (Game1.IsMasterGame)
-                {
-                    piercesLeft.Value--;
-                }
-                else
-                {
-                    destroyMe = true;
-                }
+                piercesLeft.Value = 0;
+                destroyMe = true;
+
             }
         }
         private void TrackParticles(GameLocation location)
